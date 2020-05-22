@@ -1,0 +1,25 @@
+version: '3.7'
+services:
+  web:
+    image: contao-nginx:4.4
+    container_name: contao-nginx
+    depends_on:
+      - mysql
+    ports:
+      - 8080:80
+    networks:
+      - contao_network
+  mysql:
+    image: mysql:5.7
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: PASSWORD
+      MYSQL_DATABASE: contao_db
+      MYSQL_USER: contao_user
+      MYSQL_PASSWORD: PASSWORD
+    networks:
+      - contao_network
+
+networks:
+  contao_network:
