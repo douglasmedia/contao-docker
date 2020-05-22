@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   web:
-    image: contao-nginx:4.4
+    image: douglasmedia/contao-nginx:4.4
     container_name: contao-nginx
     depends_on:
       - mysql
