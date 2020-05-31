@@ -1,27 +1,60 @@
-FROM webdevops/php-nginx:7.4-alpine
+FROM php:7.4-fpm-alpine
 LABEL maintainer="Robin Douglas | Douglas IT & Media <info@douglas-media.de>"
+
+# install required php extensions
+RUN set -eux; \
+	\
+	apk add --no-cache --virtual .build-deps \
+		coreutils \
+		freetype-dev \
+		libjpeg-turbo-dev \
+		libpng-dev \
+		libzip-dev \
+        libwebp-dev \
+		icu-dev \
+		postgresql-dev \
+	; \
+	\
+    docker-php-ext-configure gd \
+		--with-freetype=/usr/include \
+		--with-jpeg=/usr/include \
+	; \
+	\
+	docker-php-ext-install -j "$(nproc)" \
+		gd \
+		opcache \
+		pdo_mysql \
+		pdo_pgsql \
+		zip \
+		intl \
+        exif \
+	; \
+	\
+	runDeps="$( \
+		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
+			| tr ',' '\n' \
+			| sort -u \
+			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+	)"; \
+	apk add --virtual .drupal-phpexts-rundeps $runDeps; \
+	apk del .build-deps
+
+# Use the default production configuration
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# install composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Set it to a fix version number if you want to run a specific version
 ARG CONTAO_VERSION=4.9
 
-# add custom nginx configuration
-ADD conf/vhost.conf /opt/docker/etc/nginx/vhost.conf
-
-# copy composer install script into the container
-ADD scripts/install-composer.sh /install-composer.sh
-
-# install composer
-RUN bash /install-composer.sh \
- && chown -R www-data: /app
-
-WORKDIR /app
+WORKDIR /var/www/html
 
 # Install contao
 RUN COMPOSER_MEMORY_LIMIT=-1 composer create-project contao/managed-edition . $CONTAO_VERSION
 
-# Install Contao Manager
-RUN curl -o web/contao-manager.php -L https://download.contao.org/contao-manager.phar
+# make sure that user www-data has access to contao
+RUN chown -R www-data:www-data /var/www/html
 
-# make sure everthing is writable. note that this is not designed for prod use.
-RUN chmod -R 0777 .
-RUN chown -R www-data:www-data .
+# Expose volumes
+VOLUME ["/var/www/html", "/var/www/html/assets", "/var/www/html/files", "/var/www/html/templates", "/var/www/html/system/modules"]

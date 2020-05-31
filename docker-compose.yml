@@ -1,18 +1,41 @@
 version: '3.7'
 services:
-  web:
-    image: douglasmedia/contao-nginx:4.4
-    container_name: contao-nginx
-    depends_on:
-      - mysql
+  nginx:
+    image: nginx
     ports:
       - 8080:80
+    links:
+      - php
+    volumes:
+      - contao-installation:/var/www/html
+      - contao-assets:/var/www/html/assets
+      - contao-files:/var/www/html/files
+      - contao-modules:/var/www/html/system/modules
+      - contao-templates:/var/www/html/templates
+      - ./conf/default.nginx:/etc/nginx/conf.d/default.conf
     networks:
       - contao_network
-  mysql:
-    image: mysql:5.7
+  php:
+    image: douglasmedia/contao-alpine:4.9
+    container_name: php
+    links:
+      - mariadb
+    ports:
+      - 9000:9000
+    volumes:
+      - contao-installation:/var/www/html
+      - contao-assets:/var/www/html/assets
+      - contao-files:/var/www/html/files
+      - contao-modules:/var/www/html/system/modules
+      - contao-templates:/var/www/html/templates
+    networks:
+      - contao_network
+  mariadb:
+    image: mariadb
     ports:
       - 3306:3306
+    volumes:
+      - contao-db:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: PASSWORD
       MYSQL_DATABASE: contao_db
@@ -23,3 +46,10 @@ services:
 
 networks:
   contao_network:
+volumes:
+  contao-installation:
+  contao-assets:
+  contao-files:
+  contao-modules:
+  contao-templates:
+  contao-db:
